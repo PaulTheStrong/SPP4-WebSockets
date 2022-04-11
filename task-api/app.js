@@ -5,9 +5,11 @@ const express = require('express'),
   	fileUpload = require('express-fileupload');
 	fs = require('fs'),
 	cors = require('cors'),
-	cookieParser = require('cookie-parser');
+	cookieParser = require('cookie-parser'),
+	wss = require('./routes/sockets');
 const app = express(),
 	port = 10000
+	wss = 
 
 app.use(morgan('dev'));
 app.use(express.json());
@@ -20,13 +22,3 @@ app.use(cors({
 	credentials: true
 }));
 app.use(cookieParser());
-
-fs.readdirSync('./routes').forEach(file => {
-	let fileName = file.slice(0, -3);
-	console.log(`Scanning ${fileName}`);
-	app.use('/' + fileName, require('./routes/' + fileName))
-});
-
-app.listen(port, () => {
-	console.log('server started on http://localhost:' + port)
-})

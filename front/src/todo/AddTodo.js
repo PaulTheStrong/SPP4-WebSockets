@@ -28,8 +28,6 @@ function useInputValue(defaultTitle = '') {
 function AddTodo({onCreate}) {
     const input = useInputValue('');
     const [files, setFiles] = useState('');
-    
-
 
     const saveFiles = (e) => {
         console.log("Update files");
@@ -39,28 +37,29 @@ function AddTodo({onCreate}) {
     function submitHandler(event) {
         event.preventDefault();
 
-        let formData = new FormData();
-
         if(input.title().trim()) {
-            formData.append("title", input.title());
-            formData.append("dueTo", input.dueDate() != null ? '"' + input.dueDate() + '"' : null);
+            // formData.append("dueTo", input.dueDate() != null ? '"' + input.dueDate() + '"' : null);
             console.log(files)
+            let fileNames = [];
             if (files !== null && files !== undefined) {
                 for (let i = 0; i < files.length; i++) {
-                    formData.append(`files[${i}]`, files[i]);
+                    fileNames.append(files[i]);
                 }
             }
-            fetch("http://127.0.0.1:10000/tasks", {
-                method: 'POST',
-                body: formData,
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(todo => {
-                onCreate(todo);
-                input.clear();
-                input.clearDate();
-            });
+            let newTask = {
+                title: input.title(),
+                dueDate: input.dueDate(),
+            }
+    
+            let message = {
+                type: 'tasks/add',
+                task: newTask,
+                files: files
+            }
+
+            onCreate(message);
+            input.clear();
+            input.clearDate();
         }
     }
 

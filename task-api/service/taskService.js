@@ -2,10 +2,10 @@ const Task = require('../model/task')
 
 async function updateTask(id, updateObject) {
     try {
-        await Task.updateOne({ _id:  id}, updateObject).exec();
-        return { code: 200, msg: "Ok" };
+        let task = await Task.findOneAndUpdate({ _id:  id}, updateObject, {returnDocument: 'after'}).exec();
+        return { code: 200, task: task };
     } catch (err) {
-        return { code: 400, msg: "Error" };
+        return { code: 400, err: "Bad request: " + err};
     }
 }
 
@@ -28,7 +28,7 @@ async function deleteTask(id) {
         let task = await Task.findByIdAndRemove(id).exec();
         return {code: 200, task: task};
     } catch (err) {
-        return {code: 404};
+        return {code: 404, err};
     }
 }
 

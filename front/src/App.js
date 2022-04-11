@@ -7,11 +7,19 @@ import AddTodo from './todo/AddTodo';
 import Loader from './todo/Loader';
 import Login from './todo/Login'
 
+const FETCH_TASKS_TYPE = 'tasks/get';
+const DELETE_TASK_TYPE = 'tasks/delete';
+const UPDATE_TASK_TYPE = 'tasks/update';
+const ADD_TASK_TYPE = 'tasks/add';
+
 function App() {
 
   const [todos, setTodos] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [authenticated, setAuthenticated] = React.useState(true);
+  const socket = React.useRef();
+  const [connected, setConnected] = React.useState(false); 
+
 
   async function authenticateResponse(response) {
     if (response.status == 401) {
@@ -21,123 +29,124 @@ function App() {
     return response;
   }
 
-  async function fetchTasks() {
-    let response = await fetch('http://127.0.0.1:10000/tasks', {
-      credentials: "include"
-    });
-    await authenticateResponse(response);
-    response = await response.json();
+  function fetchTasks() {
+    socket.current.send(JSON.stringify({type: FETCH_TASKS_TYPE}));
+  }
 
-    let tasks = await response.tasks.map(todo => {
-      if (todo.dueTo != null) {
-        todo.dueTo = new Date(todo.dueTo)
-      }
-      return todo;
-    });
-    setLoading(false);
-    setTodos(tasks);
+  function onTasksFetched(message) {
+    if (message.code == 200) {
+      let tasks = message.tasks.map(todo => {
+        if (todo.dueTo != null) {
+          todo.dueTo = new Date(todo.dueTo);
+        }
+        return todo;
+      });
+      setLoading(false);
+      setTodos(tasks);
+    } else {
+      console.log(message.err);
+    }
   }
 
   useEffect(() => {
-    (async () => {
-      if (authenticated) {
-        await fetchTasks();
+    socket.current = new WebSocket('ws://localhost:10000');
+    
+    socket.current.onopen = () => {
+      setConnected(true);
+      fetchTasks();
+    }
+
+    socket.current.onmessage = (message) => {
+      message = JSON.parse(message.data);
+      switch (message.type) {
+        case FETCH_TASKS_TYPE:
+          onTasksFetched(message);
+          break;
+        case DELETE_TASK_TYPE:
+          onDeleteTask(message);
+          break;
+        case ADD_TASK_TYPE:
+          onAddTask(message);
+          break;
+        case UPDATE_TASK_TYPE:
+          onUpdateTask(message);
+          break;
       }
-    })()
+    }
+
+
   }, [])
 
-  function toggleTodo(id) {
-    setLoading(true);
-    let todo = todos.filter(todo => todo._id === id)[0];
-    fetch("http://127.0.0.1:10000/tasks/" + id,
-    {
-      method: "PUT",
-      credentials: 'include',
-      body: `{"isCompleted": ${!todo.isCompleted}}`,
-      headers: {
-        "Content-Type": "application/json"
-      }
-    })
-    .then(response => authenticateResponse(response))
-    .then(response => ({ok: response.ok, statusText: response.statusText}))
-    .then(({ok, statusText}) => {
-      console.log(statusText);
-      if (ok) {
-        setTodos(todos.map(todo => {
-          if (todo._id === id) {
-            todo.isCompleted = !todo.isCompleted;
-          }
-          return todo;
-        })
-        );
-      } else {
-        console.log(statusText);
-      }
-    }).finally(setLoading(false));
+  function deleteTask(id) {
+    socket.current.send(JSON.stringify({type: DELETE_TASK_TYPE, taskId: id}));
   }
 
-  function deleteTodo(id) {
-    fetch("http://127.0.0.1:10000/tasks/" + id,
-    {
-      method: "DELETE",
-      credentials: 'include'
-    })
-    .then(response => authenticateResponse(response))
-    .then(response => ({ok: response.ok, statusText: response.statusText}))
-    .then(({ok, statusText}) => {
-      if (ok) {
-        setTodos(todos.filter(todo => todo._id !== id));        
-      } else {
-        console.log(statusText);
-      }
-    });
+  function onDeleteTask(message) {
+    if (message.code == 200) {
+      setTodos(prev => prev.filter(todo => todo._id !== message.task._id));        
+    } else {
+      console.log(message.err);
+    }
   }
 
   function changeDueTo(id, newDate) {
-    fetch("http://127.0.0.1:10000/tasks/" + id,
-    {
-      method: "PUT",
-      body: `{"dueTo": "${newDate}"}`,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      credentials: 'include'
-    })
-    .then(response => authenticateResponse(response))
-    .then(response => ({ok: response.ok, message: response.message}))
-    .then (({ok, message}) => {
-      console.log(message);
-      if (ok) {
-        setTodos(todos.map(todo => {
-          if (todo._id === id) {
-            todo.dueTo = newDate;
-          }
-          return todo;
-        }));
-      }
-    });
+    socket.current.send(JSON.stringify({
+      type: UPDATE_TASK_TYPE, 
+      taskId: id, 
+      task : {dueTo: newDate}
+    }));
   }
 
-  function addTodo(todo) {    
-    setTodos(todos.concat([todo]));
+  function toggleTodo(id) {
+    let todo = todos.filter(todo => todo._id === id)[0];
+    socket.current.send(JSON.stringify({
+      taskId: id, 
+      type: UPDATE_TASK_TYPE, task: {isCompleted: !todo.isCompleted}
+    }))
+  }
+
+  function onUpdateTask(message) {
+    if (message.code === 200) {
+      let task = message.task;
+      setTodos(prev => prev.map(todo => {
+        if (todo._id === task._id) {
+          return task;
+        } 
+        return todo;
+      }));
+    } else {
+      console.log(message.err);
+    }
+  }
+
+  function onAddTask(message) {
+    if (message.code === 201) {
+      setTodos(prev => [...prev, message.task])
+    } else {
+      console.log(message.err);
+    }
+  }
+
+  function addTodo(message) {    
+    socket.current.send(JSON.stringify(message));
   }
 
   return (
-    <Context.Provider value={ {deleteTodo, changeDueTo, authenticateResponse} }>
+    <Context.Provider value={ {deleteTodo: deleteTask, changeDueTo, authenticateResponse} }>
     <div className='wrapper'>
-      {authenticated && (
+      {connected && (
       <div>
         <h1>Your tasks</h1>
-        <AddTodo onCreate={addTodo}/>
+        <AddTodo onCreate={addTodo} />
         {loading && <Loader />}
         <TodoList todos={todos} 
         onToggle={toggleTodo}
         />
       </div>
       )}
-      {!authenticated && (
+      {/* {!authenticated && (
         <Login loginCallback={() => {setAuthenticated(true); fetchTasks();}}/>
-      )}
+      )} */}
     </div>
     </Context.Provider>
   );
