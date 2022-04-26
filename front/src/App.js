@@ -16,8 +16,9 @@ function App() {
 
   const [todos, setTodos] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  const [authenticated, setAuthenticated] = React.useState(true);
+  const [authenticated, setAuthenticated] = React.useState(false);
   const socket = React.useRef();
+  const timer = React.useRef();
   const [connected, setConnected] = React.useState(false); 
 
 
@@ -49,31 +50,46 @@ function App() {
   }
 
   useEffect(() => {
-    socket.current = new WebSocket('ws://localhost:10000');
-    
-    socket.current.onopen = () => {
-      setConnected(true);
-      fetchTasks();
-    }
+    function initSocket(websocket) {
+      socket.current = websocket;
+      
+      websocket.onopen = () => {
+        clearInterval(timer.current);
+        setConnected(true);
+        fetchTasks();
+      }
 
-    socket.current.onmessage = (message) => {
-      message = JSON.parse(message.data);
-      switch (message.type) {
-        case FETCH_TASKS_TYPE:
-          onTasksFetched(message);
-          break;
-        case DELETE_TASK_TYPE:
-          onDeleteTask(message);
-          break;
-        case ADD_TASK_TYPE:
-          onAddTask(message);
-          break;
-        case UPDATE_TASK_TYPE:
-          onUpdateTask(message);
-          break;
+      websocket.onclose = () => {
+        setConnected(false);
+        setLoading(true);
+        setTodos([]);
+        timer.current = setInterval(() => {
+          if (authenticated) {
+            initSocket(new WebSocket("ws://localhost:10000"));
+          }
+        }, 2000)
+      }
+
+      websocket.onmessage = (message) => {
+        message = JSON.parse(message.data);
+        switch (message.type) {
+          case FETCH_TASKS_TYPE:
+            onTasksFetched(message);
+            break;
+          case DELETE_TASK_TYPE:
+            onDeleteTask(message);
+            break;
+          case ADD_TASK_TYPE:
+            onAddTask(message);
+            break;
+          case UPDATE_TASK_TYPE:
+            onUpdateTask(message);
+            break;
+        }
       }
     }
 
+    initSocket(new WebSocket("ws://localhost:10000"));
 
   }, [])
 
@@ -134,19 +150,18 @@ function App() {
   return (
     <Context.Provider value={ {deleteTodo: deleteTask, changeDueTo, authenticateResponse} }>
     <div className='wrapper'>
-      {connected && (
+    {authenticated && (
       <div>
         <h1>Your tasks</h1>
         <AddTodo onCreate={addTodo} />
-        {loading && <Loader />}
-        <TodoList todos={todos} 
-        onToggle={toggleTodo}
+        {(loading || !connected) && <Loader />}
+        <TodoList todos={todos} onToggle={toggleTodo}
         />
       </div>
       )}
-      {/* {!authenticated && (
+      {!authenticated && (
         <Login loginCallback={() => {setAuthenticated(true); fetchTasks();}}/>
-      )} */}
+      )}
     </div>
     </Context.Provider>
   );

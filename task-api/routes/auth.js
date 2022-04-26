@@ -1,4 +1,3 @@
-const { response, Router } = require('express');
 const { authenticateUser } = require('../service/authService');
 
 const router = require('express').Router(),
@@ -14,8 +13,8 @@ router.post("/register", (req, res) => {
         return;
     }
 
-    if (password == null || password.length < 6 || password.length > 64) {
-        res.status(400).send({message: "Password length must be between 6 and 64"});
+    if (password == null || password.length < 4 || password.length > 64) {
+        res.status(400).send({message: "Password length must be between 4 and 64"});
         return;
     }
 

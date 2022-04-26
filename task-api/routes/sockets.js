@@ -7,7 +7,11 @@ const wss = new WebSocketServer({
     console.log("Web socket server started");
 })
 
-wss.on('connection', (client) => {
+wss.on('connection', (client, request) => {
+    let cookie = request.headers.cookie;
+    if (coolie == null || cookie == undefined) {
+        client.close();
+    }
     client.on('message', (message) => {
         message = JSON.parse(message);
         console.log(message);
@@ -32,13 +36,3 @@ wss.on('connection', (client) => {
 })
 
 module.exports = {wss};
-
-const messageIn = {
-    type: String,
-    messge: Object,
-    token: String
-}
-
-const messageOut = {
-
-}

@@ -5,29 +5,24 @@ function Login({loginCallback}) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     
-    function login(e) {
+    async function login(e) {
         e.preventDefault();
-
-        fetch("http://127.0.0.1:10000/auth", {
-            method: "POST",
-            body: `{
-                "username" : "${username}",
-                "password" : "${password}"
-            }`,
-            headers: {
-                "Content-Type": "application/json"
-            },
-            credentials: 'include'
-        })
-        .then(response => ({ok: response.ok, message: response.message}))
-        .then(({ok, message}) => {
-            console.log()
-            if (!ok) {
-                console.log(message);
-                return;
+        try {
+            let creds = {username, password};
+            let response = await fetch("http://localhost:10001/auth", {
+                method: "POST",
+                body: JSON.stringify(creds),
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                credentials: 'include'
+            });
+            if (response.ok) {
+                loginCallback();
             }
-            loginCallback();
-        })
+        } catch (err) {
+            console.log (err);
+        }
     }
 
     return (

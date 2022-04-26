@@ -21,4 +21,15 @@ function createToken(user) {
     }, 'secret', { expiresIn: '5m' });
 }
 
+function checkToken(token) {
+    console.log("Cookies: " + JSON.stringify(req.cookies, null, ' '));
+    jwt.verify(req.cookies["token"], "secret", (err, decoded) => {
+        if (err) {
+           res.status(401).send("Error: " + err);
+           return; 
+        }
+        next();
+    })
+}
+
 module.exports = {authenticateUser, createToken};

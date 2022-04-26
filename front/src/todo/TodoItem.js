@@ -30,32 +30,28 @@ const styles = {
 }
 
 function useInputValue(id, defaultDate = null, callback) { 
-    const [dueDate, setDueDate] = useState(defaultDate);
+    const [dueTo, setDueTo] = useState(defaultDate);
     return {
         bindDate: {
-            value: dueDate,
+            value: dueTo,
             onChange: newValue => {
                 if (callback != null) {
                     callback(id, newValue);
                 }
-                setDueDate(newValue)
+                setDueTo(newValue)
             },
-            name: 'dueDate'
+            name: 'dueTo'
         },
-        clearDate: () => setDueDate(new Date()),
-        dueDate: () => dueDate
+        clearDate: () => setDueTo(new Date()),
+        dueTo: () => dueTo
     }
-}
-
-function isValidDate(d) {
-    return d instanceof Date && d != null && !isNaN(d);
 }
 
 function TodoItem({todo, index, onChange}) {
     const {deleteTodo, changeDueTo} = useContext(Context);
     const classes = [];
 
-    const dateBind = useInputValue(todo._id, isValidDate(todo.dueTo) ? todo.dueTo : null, changeDueTo);
+    const dateBind = useInputValue(todo._id, todo.dueTo, changeDueTo);
 
     if (todo.isCompleted) {
         classes.push('completed');

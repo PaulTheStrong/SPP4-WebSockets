@@ -1,4 +1,5 @@
-const Task = require('../model/task')
+const Task = require('../model/task');
+const fs = require('fs');
 
 async function updateTask(id, updateObject) {
     try {
@@ -34,17 +35,20 @@ async function deleteTask(id) {
 
 async function addTask(reqTask, files) {
     filelist = [];
-    console.log(files);
-    if (files != null) {
-        for (let f in files) {
-            filelist.push(files[f].name);
-            files[f].mv("taskFiles/" + files[f].name);
+    if (files != null && files != undefined) {
+        for (let f of files) {
+            try {
+                fs.writeFile(`taskFiles/${f.name}`, Buffer.from(Object.values(f.buf)), {}, () => {console.log("File written")});
+                filelist.push(f.name);
+            } catch (err) {
+                console.log(err);
+            }
         }
     }
-    let date = reqTask.dueTo == 'null' ? null : new Date(reqTask.dueTo.substring(1, reqTask.dueTo.length - 1));
+    let date = reqTask.dueTo;
     let task = new Task({ title: reqTask.title, dueTo: date, files: filelist });
     try {
-        let result = await task.save().exec();
+        let result = await task.save();
         return {code: 201, task : result};
     } catch (err) {
         return {code: 400, err: err};
