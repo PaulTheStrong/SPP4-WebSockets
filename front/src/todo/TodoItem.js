@@ -51,7 +51,7 @@ function TodoItem({todo, index, onChange}) {
     const {deleteTodo, changeDueTo} = useContext(Context);
     const classes = [];
 
-    const dateBind = useInputValue(todo._id, todo.dueTo, changeDueTo);
+    const dateBind = useInputValue(todo.id, todo.dueTo, changeDueTo);
 
     if (todo.isCompleted) {
         classes.push('completed');
@@ -64,12 +64,12 @@ function TodoItem({todo, index, onChange}) {
                         <input type='checkbox'
                         style={styles.input}  
                         checked={todo.isCompleted}
-                        onChange={() => onChange(todo._id)}/>
+                        onChange={() => onChange(todo.id)}/>
                         <strong>{index + 1}</strong>
                         &nbsp;
                         {todo.title}
                     </span>
-                    <button onClick={() => deleteTodo(todo._id)}>&times;</button>
+                    <button onClick={() => deleteTodo(todo.id)}>&times;</button>
                 </li>
             </div>
             <div style={styles.innerContiner}>

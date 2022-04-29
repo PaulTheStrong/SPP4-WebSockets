@@ -1,4 +1,4 @@
-const { authenticateUser } = require('../service/authService');
+const { authenticateUser, createToken } = require('../service/authService');
 
 const router = require('express').Router(),
     User = require('../model/user'),
@@ -19,18 +19,21 @@ router.post("/register", (req, res) => {
     }
 
     let user = new User({username, password: bcrypt.hashSync(password, 10)});
-
-    user.save((err, savedUser) => {
-        if (err) {
-            console.log(err);
-            res.status(400).send({message: "Unable to register new user"});
-            return;
-        }
-        let token = createToken(savedUser);
-        res.status(200)
-            .cookie("token", JSON.stringify(token), {httpOnly: true, secure: true, expires: new Date(Date.now() + 60 * 5 * 1000)})
-            .send("User has been registered");
-    });
+    try {
+        user.save((err, savedUser) => {
+            if (err) {
+                console.log(err);
+                res.status(400).send({message: "Unable to register new user"});
+                return;
+            }
+            let token = createToken(savedUser);
+            res.status(200)
+                .cookie("token", JSON.stringify(token), {httpOnly: true, secure: true, expires: new Date(Date.now() + 60 * 5 * 1000)})
+                .send("User has been registered");
+        });
+    } catch (err) {
+        console.log(err);
+    }
 })
 
 router.post("/", async (req, res) => {

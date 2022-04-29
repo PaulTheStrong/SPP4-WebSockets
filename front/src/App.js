@@ -7,20 +7,13 @@ import AddTodo from './todo/AddTodo';
 import Loader from './todo/Loader';
 import Login from './todo/Login'
 
-const FETCH_TASKS_TYPE = 'tasks/get';
-const DELETE_TASK_TYPE = 'tasks/delete';
-const UPDATE_TASK_TYPE = 'tasks/update';
-const ADD_TASK_TYPE = 'tasks/add';
+const server_port = 10005;
 
 function App() {
 
   const [todos, setTodos] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  const [authenticated, setAuthenticated] = React.useState(false);
-  const socket = React.useRef();
-  const timer = React.useRef();
-  const [connected, setConnected] = React.useState(false); 
-
+  const [authenticated, setAuthenticated] = React.useState(true);
 
   async function authenticateResponse(response) {
     if (response.status == 401) {
@@ -30,121 +23,189 @@ function App() {
     return response;
   }
 
-  function fetchTasks() {
-    socket.current.send(JSON.stringify({type: FETCH_TASKS_TYPE}));
-  }
+  async function fetchTasks() {
+    try {
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
 
-  function onTasksFetched(message) {
-    if (message.code == 200) {
-      let tasks = message.tasks.map(todo => {
-        if (todo.dueTo != null) {
-          todo.dueTo = new Date(todo.dueTo);
-        }
-        return todo;
-      });
-      setLoading(false);
-      setTodos(tasks);
-    } else {
-      console.log(message.err);
+      var graphql = JSON.stringify({
+        query: "{\r\n    tasks {\r\n        code,\r\n        tasks {\r\n            id,\r\n            title,\r\n            dueTo,\r\n            createdAt,\r\n            files,\r\n            isCompleted\r\n        }\r\n    }\r\n}",
+        variables: {}
+      })
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: graphql,
+        redirect: 'follow',
+        credentials: 'include'
+      };
+
+      let response = await fetch(`http://localhost:${server_port}/graphql`, requestOptions); 
+      await authenticateResponse(response);  
+      response = await response.json();
+      response = await response.data;
+      response = await response.tasks;
+      if (response.code == 200) {
+        let tasks = response.tasks.map(todo => {
+          if (todo.dueTo != null) {
+            todo.dueTo = new Date(todo.dueTo);
+          }
+          return todo;
+        });
+        setLoading(false);
+        setTodos(tasks);
+      } else {
+        console.log(response.err);
+      } 
+    } catch (err) {
+      console.log(err);
     }
   }
 
   useEffect(() => {
-    function initSocket(websocket) {
-      socket.current = websocket;
-      
-      websocket.onopen = () => {
-        clearInterval(timer.current);
-        setConnected(true);
         fetchTasks();
-      }
-
-      websocket.onclose = () => {
-        setConnected(false);
         setLoading(true);
         setTodos([]);
-        timer.current = setInterval(() => {
-          if (authenticated) {
-            initSocket(new WebSocket("ws://localhost:10000"));
-          }
-        }, 2000)
-      }
-
-      websocket.onmessage = (message) => {
-        message = JSON.parse(message.data);
-        switch (message.type) {
-          case FETCH_TASKS_TYPE:
-            onTasksFetched(message);
-            break;
-          case DELETE_TASK_TYPE:
-            onDeleteTask(message);
-            break;
-          case ADD_TASK_TYPE:
-            onAddTask(message);
-            break;
-          case UPDATE_TASK_TYPE:
-            onUpdateTask(message);
-            break;
-        }
-      }
-    }
-
-    initSocket(new WebSocket("ws://localhost:10000"));
-
   }, [])
 
-  function deleteTask(id) {
-    socket.current.send(JSON.stringify({type: DELETE_TASK_TYPE, taskId: id}));
+  async function deleteTask(id) {
+    try {
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var graphql = JSON.stringify({
+        query: "mutation($id: String!) {\r\n    deleteTask (id: $id) {\r\n        code, \r\n        err,\r\n        task {\r\n            id, \r\n            title,\r\n            createdAt,\r\n            dueTo,\r\n            files,\r\n            isCompleted\r\n        }\r\n    }\r\n}",
+        variables: {"id": id}
+      })
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: graphql,
+        redirect: 'follow',
+        credentials: 'include'
+      };
+
+      
+      let response = await fetch(`http://localhost:${server_port}/graphql`, requestOptions);
+      await authenticateResponse(response); 
+      response = await response.json();;
+      response = await response.data;
+      response = await response.deleteTask;
+      if (response.code == 200) {
+        setTodos(prev => prev.filter(todo => todo.id !== response.task.id));        
+      } else {
+        console.log(response.err);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+      
   }
 
-  function onDeleteTask(message) {
-    if (message.code == 200) {
-      setTodos(prev => prev.filter(todo => todo._id !== message.task._id));        
-    } else {
-      console.log(message.err);
+  async function changeDueTo(id, newDate) {
+    try {
+      let todo = todos.filter(todo => todo.id === id)[0];
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
+
+      var graphql = JSON.stringify({
+        query: "mutation($id: String!, $task: UpdateTask!) {\r\n    updateTask (id: $id, task: $task) {\r\n        code, \r\n        err,\r\n        task {\r\n            id, \r\n            title,\r\n            createdAt,\r\n            dueTo,\r\n            files,\r\n            isCompleted\r\n        }\r\n    }\r\n}",
+        variables: {"id": id,"task":{"dueTo": newDate}}
+      })
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: graphql,
+        redirect: 'follow',
+        credentials: 'include'
+      };
+
+      let response = await fetch(`http://localhost:${server_port}/graphql`, requestOptions);
+      await authenticateResponse(response);  
+      response = await response.json();;
+      response = await response.data;
+      response = await response.updateTask;
+      if (response.code == 200) {
+        let task = response.task;
+        setTodos(prev => prev.map(todo => {
+          if (todo.id === task.id) {
+            return task;
+          } 
+          return todo;
+        }));
+      } else {
+        console.log(response.err);
+      }
+    } catch (err) {
+      console.log(err);
     }
   }
 
-  function changeDueTo(id, newDate) {
-    socket.current.send(JSON.stringify({
-      type: UPDATE_TASK_TYPE, 
-      taskId: id, 
-      task : {dueTo: newDate}
-    }));
-  }
+  async function toggleTodo(id) {
+    try {
+      let todo = todos.filter(todo => todo.id === id)[0];
+      var myHeaders = new Headers();
+      myHeaders.append("Content-Type", "application/json");
 
-  function toggleTodo(id) {
-    let todo = todos.filter(todo => todo._id === id)[0];
-    socket.current.send(JSON.stringify({
-      taskId: id, 
-      type: UPDATE_TASK_TYPE, task: {isCompleted: !todo.isCompleted}
-    }))
-  }
+      var graphql = JSON.stringify({
+        query: "mutation($id: String!, $task: UpdateTask!) {\r\n    updateTask (id: $id, task: $task) {\r\n        code, \r\n        err,\r\n        task {\r\n            id, \r\n            title,\r\n            createdAt,\r\n            dueTo,\r\n            files,\r\n            isCompleted\r\n        }\r\n    }\r\n}",
+        variables: {"id": id,"task":{"isCompleted": !todo.isCompleted}}
+      })
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: graphql,
+        redirect: 'follow',
+        credentials: 'include'
+      };
 
-  function onUpdateTask(message) {
-    if (message.code === 200) {
-      let task = message.task;
-      setTodos(prev => prev.map(todo => {
-        if (todo._id === task._id) {
-          return task;
-        } 
-        return todo;
-      }));
-    } else {
-      console.log(message.err);
+      let response = await fetch(`http://localhost:${server_port}/graphql`, requestOptions);
+      await authenticateResponse(response);   
+      response = await response.json();;
+      response = await response.data;
+      response = await response.updateTask;
+      if (response.code == 200) {
+        let task = response.task;
+        setTodos(prev => prev.map(todo => {
+          if (todo.id === task.id) {
+            return task;
+          } 
+          return todo;
+        }));
+      } else {
+        console.log(response.err);
+      }
+    } catch (err) {
+      console.log(err);
     }
   }
 
-  function onAddTask(message) {
-    if (message.code === 201) {
-      setTodos(prev => [...prev, message.task])
-    } else {
-      console.log(message.err);
-    }
-  }
+  async function addTodo(message) {    
+    var myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
 
-  function addTodo(message) {    
-    socket.current.send(JSON.stringify(message));
+    var graphql = JSON.stringify({
+      query: "mutation($task: InputTask!) {\r\n    addTask (task: $task) {\r\n        code, \r\n        err,\r\n        task {\r\n            id, \r\n            title,\r\n            createdAt,\r\n            dueTo,\r\n            files,\r\n            isCompleted\r\n        }\r\n    }\r\n}",
+      variables: {"task":{"title": message.task.title,"dueTo":message.task.dueTo,"files": message.files}}
+    })
+    var requestOptions = {
+      method: 'POST',
+      headers: myHeaders,
+      body: graphql,
+      redirect: 'follow',
+      credentials: 'include'
+    };
+
+    let response = await fetch(`http://localhost:${server_port}/graphql`, requestOptions); 
+    await authenticateResponse(response);  
+    response = await response.json();;
+    response = await response.data;
+    response = await response.addTask;
+    if (response.code == 201) {
+      setTodos(prev => [...prev, response.task])
+    } else {
+      console.log(response.err);
+    }
   }
 
   return (
@@ -154,7 +215,7 @@ function App() {
       <div>
         <h1>Your tasks</h1>
         <AddTodo onCreate={addTodo} />
-        {(loading || !connected) && <Loader />}
+        {(loading) && <Loader />}
         <TodoList todos={todos} onToggle={toggleTodo}
         />
       </div>

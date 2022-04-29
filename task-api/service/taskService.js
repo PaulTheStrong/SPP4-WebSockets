@@ -38,7 +38,7 @@ async function addTask(reqTask, files) {
     if (files != null && files != undefined) {
         for (let f of files) {
             try {
-                fs.writeFile(`taskFiles/${f.name}`, Buffer.from(Object.values(f.buf)), {}, () => {console.log("File written")});
+                fs.writeFile(`taskFiles/${f.name}`, Buffer.from(f.buf), () => {});
                 filelist.push(f.name);
             } catch (err) {
                 console.log(err);
@@ -46,7 +46,7 @@ async function addTask(reqTask, files) {
         }
     }
     let date = reqTask.dueTo;
-    let task = new Task({ title: reqTask.title, dueTo: date, files: filelist });
+    let task = new Task({ title: reqTask.title, dueTo: date, files: filelist, isCompleted: false });
     try {
         let result = await task.save();
         return {code: 201, task : result};

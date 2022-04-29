@@ -21,7 +21,7 @@ function createToken(user) {
     }, 'secret', { expiresIn: '5m' });
 }
 
-function checkToken(token) {
+function checkToken(req, res, next) {
     console.log("Cookies: " + JSON.stringify(req.cookies, null, ' '));
     jwt.verify(req.cookies["token"], "secret", (err, decoded) => {
         if (err) {
@@ -32,4 +32,4 @@ function checkToken(token) {
     })
 }
 
-module.exports = {authenticateUser, createToken};
+module.exports = {authenticateUser, createToken, checkToken};

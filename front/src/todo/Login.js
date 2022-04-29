@@ -9,7 +9,7 @@ function Login({loginCallback}) {
         e.preventDefault();
         try {
             let creds = {username, password};
-            let response = await fetch("http://localhost:10001/auth", {
+            let response = await fetch("http://localhost:10005/auth/", {
                 method: "POST",
                 body: JSON.stringify(creds),
                 headers: {

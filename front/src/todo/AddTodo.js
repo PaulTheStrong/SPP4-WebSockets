@@ -44,7 +44,7 @@ function AddTodo({onCreate}) {
             if (files !== null && files !== undefined) {
                 for (let i = 0; i < files.length; i++) {
                     let buf = await files[i].arrayBuffer();
-                    filesData.push({name: files[i].name, buf: new Uint8Array(buf)});
+                    filesData.push({name: files[i].name, buf: Array.from(new Uint8Array(buf))});
                 }
             }
             let newTask = {
@@ -53,7 +53,6 @@ function AddTodo({onCreate}) {
             }
     
             let message = {
-                type: 'tasks/add',
                 task: newTask,
                 files: filesData
             }
