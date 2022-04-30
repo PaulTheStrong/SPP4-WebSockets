@@ -34,8 +34,8 @@ router.post("/register", (req, res) => {
 })
 
 router.post("/", async (req, res) => {
-    let username = req.body.username;
-    let password = req.body.password;
+    let username = req.body?.username;
+    let password = req.body?.password;
     let result = await authenticateUser(username, password);
     if (result.code == 200) {
         res.status(result.code)

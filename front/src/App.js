@@ -11,12 +11,13 @@ const FETCH_TASKS_TYPE = 'tasks/get';
 const DELETE_TASK_TYPE = 'tasks/delete';
 const UPDATE_TASK_TYPE = 'tasks/update';
 const ADD_TASK_TYPE = 'tasks/add';
+const UNAUTHORIZED = 'unauthorized'
 
 function App() {
 
   const [todos, setTodos] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
-  const [authenticated, setAuthenticated] = React.useState(false);
+  const [authenticated, setAuthenticated] = React.useState(true);
   const socket = React.useRef();
   const timer = React.useRef();
   const [connected, setConnected] = React.useState(false); 
@@ -49,48 +50,45 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    function initSocket(websocket) {
-      socket.current = websocket;
-      
-      websocket.onopen = () => {
-        clearInterval(timer.current);
-        setConnected(true);
-        fetchTasks();
-      }
-
-      websocket.onclose = () => {
-        setConnected(false);
-        setLoading(true);
-        setTodos([]);
-        timer.current = setInterval(() => {
-          if (authenticated) {
-            initSocket(new WebSocket("ws://localhost:10000"));
-          }
-        }, 2000)
-      }
-
-      websocket.onmessage = (message) => {
-        message = JSON.parse(message.data);
-        switch (message.type) {
-          case FETCH_TASKS_TYPE:
-            onTasksFetched(message);
-            break;
-          case DELETE_TASK_TYPE:
-            onDeleteTask(message);
-            break;
-          case ADD_TASK_TYPE:
-            onAddTask(message);
-            break;
-          case UPDATE_TASK_TYPE:
-            onUpdateTask(message);
-            break;
-        }
-      }
+  function initSocket(websocket) {
+    socket.current = websocket;
+    
+    websocket.onopen = () => {
+      clearInterval(timer.current);
+      setConnected(true);
+      fetchTasks();
     }
 
-    initSocket(new WebSocket("ws://localhost:10000"));
+    websocket.onclose = () => {
+      setConnected(false);
+      setLoading(true);
+      setTodos([]);
+    }
 
+    websocket.onmessage = (message) => {
+      message = JSON.parse(message.data);
+      switch (message.type) {
+        case FETCH_TASKS_TYPE:
+          onTasksFetched(message);
+          break;
+        case DELETE_TASK_TYPE:
+          onDeleteTask(message);
+          break;
+        case ADD_TASK_TYPE:
+          onAddTask(message);
+          break;
+        case UPDATE_TASK_TYPE:
+          onUpdateTask(message);
+          break;
+        case UNAUTHORIZED:
+          setAuthenticated(false);
+          break;
+      }
+    }
+  }
+
+  useEffect(() => {    
+    initSocket(new WebSocket("ws://localhost:10000")); 
   }, [])
 
   function deleteTask(id) {
@@ -160,7 +158,7 @@ function App() {
       </div>
       )}
       {!authenticated && (
-        <Login loginCallback={() => {setAuthenticated(true); fetchTasks();}}/>
+        <Login loginCallback={() => {setAuthenticated(true); fetchTasks(); initSocket(new WebSocket("ws://localhost:10000"))}}/>
       )}
     </div>
     </Context.Provider>

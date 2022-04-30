@@ -28,13 +28,18 @@ async function updateTask(socket, message) {
  * @param {WebSocket} socket 
  * @param {Object} message 
  */
-async function getFile(socket, message) {
-    let filename = message.filename;
+ async function getFile(req, res) {
+    let filename = req.params.filename;
     try {
-        let data = await fs.readFile("/../taskFiles/" + filename);
-        socket.send(data);
+        fs.readFile("./taskFiles/" + filename, (err, data) => {
+            if (err) {
+                res.status(500).send(err);
+            } else {
+                res.status(200).send(data);
+            }
+        });
     } catch (err) {
-        socket.send(JSON.stringify({status: 404, type: message.type}));
+        print(err);
     }
 }
 
